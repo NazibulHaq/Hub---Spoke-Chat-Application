@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { socket } from '@/lib/socket';
 import { EVENTS } from '@hub-spoke/shared';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
+import { ChatInput } from '@/components/ui/chat-input';
+import { MessageContent } from '@/components/ui/message-content';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -84,7 +85,7 @@ export default function ChatPage() {
         sendMessage(msg.content, msg.id);
     };
 
-    const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const val = e.target.value;
         setInput(val);
 
@@ -137,10 +138,16 @@ export default function ChatPage() {
             socket.auth = { token };
             socket.connect();
         } else {
-            // Force state update in case we mounted with existing connection
-            setIsConnected(true);
-            // Ensure auth
-            if (!socket.auth) socket.auth = { token };
+            // Check for stale connection (Token/Identity mismatch)
+            const socketToken = (socket.auth as any)?.token;
+            if (socketToken !== token) {
+                console.log('[Chat] Token mismatch, reconnecting socket...');
+                socket.disconnect();
+                socket.auth = { token };
+                socket.connect();
+            } else {
+                setIsConnected(true);
+            }
         }
 
         // Fetch history
@@ -254,7 +261,10 @@ export default function ChatPage() {
                                     ? 'bg-blue-600 text-white rounded-br-none'
                                     : 'bg-white border rounded-bl-none'
                                     }`}>
-                                    {m.content}
+                                    <MessageContent
+                                        content={m.content}
+                                        isOwnMessage={m.senderId === userId}
+                                    />
                                 </div>
                             </div>
 
@@ -326,14 +336,13 @@ export default function ChatPage() {
             )}
 
             <div className="p-4 bg-white border-t">
-                <div className="max-w-2xl mx-auto flex gap-2">
-                    <Input
-                        placeholder="Type your message..."
+                <div className="max-w-2xl mx-auto">
+                    <ChatInput
                         value={input}
                         onChange={handleInput}
-                        onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
+                        onSend={(val) => sendMessage(val)}
+                        placeholder="Type your message... (Shift+Enter for new line)"
                     />
-                    <Button onClick={() => sendMessage(input)}>Send</Button>
                 </div>
             </div>
         </div>

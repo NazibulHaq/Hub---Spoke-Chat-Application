@@ -7,6 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { ChatInput } from '@/components/ui/chat-input';
+import { MessageContent } from '@/components/ui/message-content';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 
@@ -83,7 +85,7 @@ export default function DashboardPage() {
         sendMessage(msg.content, msg.id);
     };
 
-    const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const val = e.target.value;
         setInput(val);
 
@@ -192,8 +194,16 @@ export default function DashboardPage() {
             socket.auth = { token };
             socket.connect();
         } else {
-            setIsConnected(true);
-            if (!socket.auth) socket.auth = { token };
+            // Check for stale connection (Token/Identity mismatch)
+            const socketToken = (socket.auth as any)?.token;
+            if (socketToken !== token) {
+                console.log('[Dashboard] Token mismatch, reconnecting socket...');
+                socket.disconnect();
+                socket.auth = { token };
+                socket.connect();
+            } else {
+                setIsConnected(true);
+            }
         }
 
 
@@ -414,7 +424,10 @@ export default function DashboardPage() {
                                                 <div className={`p-3 rounded-2xl shadow-sm text-sm break-words ${m.senderId !== selectedUser
                                                     ? 'bg-primary text-primary-foreground rounded-br-none'
                                                     : 'bg-muted rounded-bl-none'}`}>
-                                                    {m.content}
+                                                    <MessageContent
+                                                        content={m.content}
+                                                        isOwnMessage={m.senderId !== selectedUser}
+                                                    />
                                                 </div>
                                             </div>
                                             {/* Status for Admin (Me) */}
@@ -442,23 +455,12 @@ export default function DashboardPage() {
                                 </div>
                             </ScrollArea>
                             <div className="p-4 border-t bg-background">
-                                <form
-                                    onSubmit={(e) => {
-                                        e.preventDefault();
-                                        sendMessage(input);
-                                    }}
-                                    className="flex gap-2"
-                                >
-                                    <Input
-                                        value={input}
-                                        onChange={handleInput}
-                                        placeholder="Type a message..."
-                                        className="flex-1"
-                                    />
-                                    <Button type="submit" disabled={!input.trim()}>
-                                        Send
-                                    </Button>
-                                </form>
+                                <ChatInput
+                                    value={input}
+                                    onChange={handleInput}
+                                    onSend={sendMessage}
+                                    placeholder="Type a message... (Shift+Enter for new line)"
+                                />
                                 <div className="text-xs text-muted-foreground mt-1 h-4">
                                     {typingUsers.has(selectedUser) ? 'User is typing...' : ''}
                                 </div>

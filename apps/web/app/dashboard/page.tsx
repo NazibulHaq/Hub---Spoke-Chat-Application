@@ -371,12 +371,29 @@ export default function DashboardPage() {
         };
     }, [router, selectedUser]); // Dependent on selectedUser for real-time logic to work correctly
 
+    // 3. Auto-scroll to bottom when messages update
+    useEffect(() => {
+        if (isAtBottom) {
+            scrollToBottom();
+        } else {
+            // Check if the LAST message is from ME (Admin)
+            // If I just sent a message, I probably want to see it regardless of where I am
+            const lastMsg = messages[messages.length - 1];
+            const myId = debugInfo.id;
+            if (lastMsg && lastMsg.senderId === myId) {
+                scrollToBottom();
+            } else {
+                setShowScrollButton(true);
+            }
+        }
+    }, [messages, typingUsers]);
+
     // ...
 
     return (
-        <div className="flex h-screen bg-background">
+        <div className="flex h-screen bg-background overflow-hidden">
             {/* Sidebar */}
-            <div className="w-80 border-r bg-muted/10 flex flex-col">
+            <div className="w-80 border-r bg-muted/10 flex flex-col h-full border-r">
                 <div className="flex border-b">
                     <button
                         onClick={() => setActiveTab('chat')}
@@ -413,7 +430,7 @@ export default function DashboardPage() {
                                 <p>ID: {debugInfo.id.substring(0, 8)}...</p>
                             </div>
                         </div>
-                        <ScrollArea className="flex-1">
+                        <ScrollArea className="flex-1 min-h-0">
                             <div className="p-2 space-y-2">
                                 {users.map((u) => (
                                     <div
@@ -472,15 +489,30 @@ export default function DashboardPage() {
             </div>
 
             {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col relative">
+            <div className="flex-1 flex flex-col h-full overflow-hidden relative">
                 {activeTab === 'chat' ? (
                     selectedUser ? (
                         <>
-                            <div className="p-4 border-b flex items-center justify-between">
-                                {/* ... */}
+                            <div className="p-4 border-b flex items-center justify-between shrink-0">
+                                {(() => {
+                                    const u = users.find(u => u.id === selectedUser);
+                                    return (
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarFallback>{u?.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <h2 className="font-semibold text-sm">{u?.email}</h2>
+                                                <span className={`text-[10px] ${u?.status === 'online' ? 'text-green-500' : 'text-muted-foreground'}`}>
+                                                    {u?.status === 'online' ? 'Online' : 'Offline'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
-                            <ScrollArea className="flex-1 p-4" onScrollCapture={handleScroll}>
+                            <ScrollArea className="flex-1 min-h-0 p-4" onScrollCapture={handleScroll}>
                                 <div className="space-y-4">
                                     {messages.filter(m => m.conversationUserId === selectedUser).map((m, i) => (
                                         <div key={i} className={`flex flex-col ${m.senderId !== selectedUser ? 'items-end' : 'items-start'}`}>
@@ -518,7 +550,7 @@ export default function DashboardPage() {
                                     <div ref={scrollRef} />
                                 </div>
                             </ScrollArea>
-                            <div className="p-4 border-t bg-background">
+                            <div className="p-4 border-t bg-background shrink-0">
                                 <ChatInput
                                     value={input}
                                     onChange={handleInput}

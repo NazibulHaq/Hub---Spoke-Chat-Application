@@ -234,7 +234,10 @@ export default function ChatPage() {
     }, [router, userId]);
 
     useEffect(() => {
-        if (isAtBottom) {
+        const lastMsg = messages[messages.length - 1];
+        const isOwn = lastMsg && lastMsg.senderId === userId;
+
+        if (isAtBottom || isOwn) {
             scrollToBottom();
         } else {
             setShowScrollButton(true);
@@ -242,8 +245,8 @@ export default function ChatPage() {
     }, [messages, isSupportTyping]);
 
     return (
-        <div className="flex flex-col h-screen bg-slate-50 select-none">
-            <header className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex flex-col h-screen bg-slate-50 select-none overflow-hidden">
+            <header className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10 shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="bg-primary text-primary-foreground h-8 w-8 rounded flex items-center justify-center font-bold">
                         S
@@ -257,7 +260,7 @@ export default function ChatPage() {
                 <Button variant="ghost" size="sm" onClick={handleLogout}>Logout</Button>
             </header>
 
-            <ScrollArea className="flex-1 p-4" onScrollCapture={handleScroll}>
+            <ScrollArea className="flex-1 min-h-0 p-4" onScrollCapture={handleScroll}>
                 <div className="space-y-4 max-w-2xl mx-auto min-h-[calc(100vh-140px)]">
                     {messages.length === 0 && (
                         <div className="text-center text-muted-foreground py-10">
@@ -350,7 +353,7 @@ export default function ChatPage() {
                 </div>
             )}
 
-            <div className="p-4 bg-white border-t">
+            <div className="p-4 bg-white border-t shrink-0">
                 <div className="max-w-2xl mx-auto">
                     <ChatInput
                         value={input}

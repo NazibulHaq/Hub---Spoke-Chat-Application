@@ -25,7 +25,7 @@ export default function DashboardPage() {
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isAtBottom, setIsAtBottom] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [debugInfo, setDebugInfo] = useState({ role: 'Loading...', id: 'Loading...' });
+    const [debugInfo, setDebugInfo] = useState({ role: 'Loading...', id: 'Loading...', displayName: 'Loading...' });
 
     // Icons
     const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-clock text-muted-foreground"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
@@ -114,6 +114,7 @@ export default function DashboardPage() {
 
     // User Management State
     const [isCreatingUser, setIsCreatingUser] = useState(false);
+    const [newUserName, setNewUserName] = useState('');
     const [newUserEmail, setNewUserEmail] = useState('');
     const [newUserPassword, setNewUserPassword] = useState('');
 
@@ -127,14 +128,20 @@ export default function DashboardPage() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ email: newUserEmail, password: newUserPassword, role: 'USER' })
+                body: JSON.stringify({
+                    email: newUserEmail,
+                    password: newUserPassword,
+                    role: 'USER',
+                    displayName: newUserName
+                })
             });
 
             if (!res.ok) throw new Error(await res.text());
 
             const newUser = await res.json();
-            setUsers(prev => [...prev, { ...newUser, status: 'offline' }]);
+            setUsers(prev => [...prev, { ...newUser, status: 'offline', unreadCount: 0 }]);
             setIsCreatingUser(false);
+            setNewUserName('');
             setNewUserEmail('');
             setNewUserPassword('');
         } catch (err: any) {
@@ -200,7 +207,11 @@ export default function DashboardPage() {
         // Safe client-side access for debug info
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            setDebugInfo({ role: payload.role, id: payload.sub });
+            if (payload.role !== 'ADMIN') {
+                router.push('/chat');
+                return;
+            }
+            setDebugInfo({ role: payload.role, id: payload.sub, displayName: payload.displayName || payload.email });
         } catch (e) {
             console.error('Failed to parse token for debug info', e);
         }
@@ -448,14 +459,18 @@ export default function DashboardPage() {
                                         <div className="flex items-center gap-3">
                                             <div className="relative">
                                                 <Avatar className="h-10 w-10">
-                                                    <AvatarFallback className="text-foreground">{u.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                    <AvatarFallback className="text-foreground">
+                                                        {(u.displayName || u.email || '??').substring(0, 2).toUpperCase()}
+                                                    </AvatarFallback>
                                                 </Avatar>
                                                 <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background ${u.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
                                                     }`} />
                                             </div>
                                             <div className="flex flex-col overflow-hidden">
-                                                <span className="font-medium text-sm truncate max-w-[120px]">{u.email}</span>
-                                                <span className="text-xs opacity-70 truncate">{u.status}</span>
+                                                <span className="font-medium text-sm truncate max-w-[120px]">
+                                                    {u.displayName || u.email}
+                                                </span>
+                                                <span className="text-xs opacity-70 truncate text-muted-foreground">{u.status === 'online' ? 'Active now' : 'Offline'}</span>
                                             </div>
                                         </div>
                                         {(u.unreadCount > 0) && (
@@ -499,10 +514,12 @@ export default function DashboardPage() {
                                     return (
                                         <div className="flex items-center gap-3">
                                             <Avatar className="h-8 w-8">
-                                                <AvatarFallback>{u?.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                <AvatarFallback>
+                                                    {(u?.displayName || u?.email || '??').substring(0, 2).toUpperCase()}
+                                                </AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <h2 className="font-semibold text-sm">{u?.email}</h2>
+                                                <h2 className="font-semibold text-sm">{u?.displayName || u?.email}</h2>
                                                 <span className={`text-[10px] ${u?.status === 'online' ? 'text-green-500' : 'text-muted-foreground'}`}>
                                                     {u?.status === 'online' ? 'Online' : 'Offline'}
                                                 </span>
@@ -516,6 +533,10 @@ export default function DashboardPage() {
                                 <div className="space-y-4">
                                     {messages.filter(m => m.conversationUserId === selectedUser).map((m, i) => (
                                         <div key={i} className={`flex flex-col ${m.senderId !== selectedUser ? 'items-end' : 'items-start'}`}>
+                                            {/* Name above bubble */}
+                                            <span className="text-[10px] text-muted-foreground mb-1 px-1 font-medium uppercase tracking-wider">
+                                                {m.senderId !== selectedUser ? debugInfo.displayName : (users.find(u => u.id === selectedUser)?.displayName || 'User')}
+                                            </span>
                                             <div className={`flex ${m.senderId !== selectedUser ? 'justify-end' : 'justify-start'} items-end gap-2 max-w-[85%]`}>
                                                 <div className={`p-3 rounded-2xl shadow-sm text-sm break-words ${m.senderId !== selectedUser
                                                     ? 'bg-primary text-primary-foreground rounded-br-none'
@@ -584,7 +605,15 @@ export default function DashboardPage() {
                                     <h3 className="font-medium">Create New User</h3>
                                     <Button variant="ghost" size="sm" onClick={() => setIsCreatingUser(false)}><XIcon className="h-4 w-4" /></Button>
                                 </div>
-                                <form onSubmit={handleCreateUser} className="grid gap-4 md:grid-cols-3 items-end">
+                                <form onSubmit={handleCreateUser} className="grid gap-4 md:grid-cols-4 items-end">
+                                    <div className="grid gap-2">
+                                        <label className="text-sm font-medium">Display Name</label>
+                                        <Input
+                                            placeholder="John Doe"
+                                            value={newUserName}
+                                            onChange={e => setNewUserName(e.target.value)}
+                                        />
+                                    </div>
                                     <div className="grid gap-2">
                                         <label className="text-sm font-medium">Email</label>
                                         <Input
@@ -613,22 +642,16 @@ export default function DashboardPage() {
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
                                     <tr>
-                                        <th className="px-6 py-3">User ID</th>
+                                        <th className="px-6 py-3">Full Name</th>
                                         <th className="px-6 py-3">Email</th>
-                                        <th className="px-6 py-3">Status</th>
                                         <th className="px-6 py-3 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {users.map((u) => (
                                         <tr key={u.id} className="border-b hover:bg-muted/50 transition-colors">
-                                            <td className="px-6 py-4 font-mono text-xs">{u.id}</td>
-                                            <td className="px-6 py-4 font-medium">{u.email}</td>
-                                            <td className="px-6 py-4">
-                                                <Badge variant={u.status === 'online' ? 'default' : 'secondary'} className={u.status === 'online' ? 'bg-green-500 hover:bg-green-600' : ''}>
-                                                    {u.status}
-                                                </Badge>
-                                            </td>
+                                            <td className="px-6 py-4 font-medium">{u.displayName || '-'}</td>
+                                            <td className="px-6 py-4">{u.email}</td>
                                             <td className="px-6 py-4 text-right">
                                                 <Button
                                                     variant="ghost"

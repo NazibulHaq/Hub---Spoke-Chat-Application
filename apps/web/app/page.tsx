@@ -12,17 +12,20 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('admin@example.com');
   const [password, setPassword] = useState('password');
+  const [displayName, setDisplayName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     const endpoint = isLogin ? 'login' : 'register';
+    setIsLoading(true);
 
     try {
       const res = await fetch(`http://localhost:4000/auth/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role: 'USER' }), // Default to USER for signup
+        body: JSON.stringify({ email, password, role: 'USER', displayName }), // Send displayName
       });
       const data = await res.json();
 
@@ -54,12 +57,14 @@ export default function LoginPage() {
     } catch (err) {
       console.error(err);
       alert('Authentication error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900">
-      <Card className="w-[350px] shadow-lg">
+      <Card className="w-[350px] shadow-lg text-slate-900 dark:text-slate-100">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">
             {isLogin ? 'System Login' : 'Create Account'}
@@ -67,26 +72,40 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
+            {!isLogin && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">Full Name</label>
+                <Input
+                  type="text"
+                  placeholder="John Doe"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required={!isLogin}
+                />
+              </div>
+            )}
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Email</label>
+              <label className="text-sm font-medium leading-none">Email</label>
               <Input
                 type="email"
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Password</label>
+              <label className="text-sm font-medium leading-none">Password</label>
               <Input
                 type="password"
                 placeholder="••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </div>
-            <Button type="submit" className="w-full">
-              {isLogin ? 'Login' : 'Sign Up'}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Processing...' : (isLogin ? 'Login' : 'Sign Up')}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">

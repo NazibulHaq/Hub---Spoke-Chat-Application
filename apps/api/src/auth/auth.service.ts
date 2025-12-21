@@ -21,17 +21,18 @@ export class AuthService {
     }
 
     async login(user: any) {
-        const payload = { email: user.email, sub: user.id, role: user.role };
+        const payload = { email: user.email, sub: user.id, role: user.role, displayName: user.displayName };
         return {
             access_token: this.jwtService.sign(payload),
         };
     }
 
-    async register(email: string, pass: string, role: Role = Role.USER) {
+    async register(email: string, pass: string, role: Role = Role.USER, displayName?: string) {
         const hashedPassword = await bcrypt.hash(pass, 10);
         const user = await this.prisma.user.create({
             data: {
                 email,
+                displayName,
                 passwordHash: hashedPassword,
                 role,
             },

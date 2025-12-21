@@ -12,9 +12,7 @@ export class UsersController {
 
     @Get()
     async findAll(@Request() req: any) {
-        console.log(`[UsersController] GET /users called by ${req.user.email} (${req.user.role})`);
         if (req.user.role !== Role.ADMIN) {
-            console.warn(`[UsersController] Access denied for ${req.user.email}`);
             throw new ForbiddenException('Only admins can view all users');
         }
         const users = await this.prisma.user.findMany({
@@ -22,10 +20,10 @@ export class UsersController {
             select: {
                 id: true,
                 email: true,
+                displayName: true,
                 role: true,
                 createdAt: true,
                 lastLogin: true,
-                // Count unread messages sent BY this user
                 _count: {
                     select: {
                         messages: {
@@ -39,11 +37,15 @@ export class UsersController {
             orderBy: { createdAt: 'desc' }
         });
 
-        // Map to flat structure if needed, or frontend handles it?
-        // Frontend expects `unreadCount`. Prisma returns `_count: { messages: N }`.
+        // Map to flat structure for the frontend
         return users.map(u => ({
-            ...u,
-            unreadCount: u._count.messages
+            id: u.id,
+            email: u.email,
+            displayName: u.displayName,
+            role: u.role,
+            createdAt: u.createdAt,
+            lastLogin: u.lastLogin,
+            unreadCount: (u as any)._count?.messages || 0
         }));
     }
 
@@ -77,7 +79,7 @@ export class UsersController {
             throw new ForbiddenException('Only admins can create users');
         }
 
-        const { email, password, role } = body;
+        const { email, password, role, displayName } = body;
 
         if (!email || !password) {
             throw new BadRequestException('Email and password are required');
@@ -94,6 +96,7 @@ export class UsersController {
         const user = await this.prisma.user.create({
             data: {
                 email,
+                displayName,
                 passwordHash: hashedPassword,
                 role: role || Role.USER,
             },

@@ -14,6 +14,7 @@ export default function ChatPage() {
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [userId, setUserId] = useState<string | null>(null);
+    const [myName, setMyName] = useState<string | null>(null);
     const router = useRouter();
     const [isTyping, setIsTyping] = useState(false);
     const [isSupportTyping, setIsSupportTyping] = useState(false);
@@ -131,7 +132,12 @@ export default function ChatPage() {
 
         if (token) {
             const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.role === 'ADMIN') {
+                router.push('/dashboard');
+                return;
+            }
             setUserId(payload.sub);
+            setMyName(payload.displayName || payload.email);
         }
 
         function onConnect() {
@@ -269,9 +275,13 @@ export default function ChatPage() {
                     )}
                     {messages.map((m, i) => (
                         <div key={i} className={`flex flex-col ${m.senderId === userId ? 'items-end' : 'items-start'}`}>
+                            {/* Name above bubble */}
+                            <span className="text-[10px] text-muted-foreground mb-1 px-1 font-medium uppercase tracking-wider">
+                                {m.senderId === userId ? myName : 'Support Agent'}
+                            </span>
                             <div className={`flex ${m.senderId === userId ? 'justify-end' : 'justify-start'} items-end gap-2 max-w-[85%]`}>
                                 {m.senderId !== userId && (
-                                    <Avatar className="h-8 w-8 mr-2 mt-1">
+                                    <Avatar className="h-6 w-6 mr-1 mb-0.5">
                                         <AvatarFallback>A</AvatarFallback>
                                     </Avatar>
                                 )}

@@ -11,21 +11,23 @@ export class ChatController {
     @Get('messages')
     async getMessages(@Request() req: any, @Query('userId') targetUserId?: string) {
         const user = req.user;
+        const currentUserId = user.sub;
+
+        if (!currentUserId) {
+            throw new BadRequestException('Invalid user context');
+        }
 
         let conversationId: string | null = null;
 
         if (user.role === Role.USER) {
             // User can only see their own conversation
             const conversation = await this.prisma.conversation.findFirst({
-                where: { userId: user.sub },
+                where: { userId: currentUserId },
             });
             conversationId = conversation?.id || null;
         } else if (user.role === Role.ADMIN) {
             // Admin must specify which user's conversation they want
             if (!targetUserId) {
-                // If no user specified, maybe return all recent messages? 
-                // For now, let's require a targetUserId to fetch a specific conversation
-                // OR we can return an empty list if not selected.
                 return [];
             }
 
@@ -38,6 +40,9 @@ export class ChatController {
         if (!conversationId) {
             return [];
         }
+
+        // Final security check: Ensure the conversation exists and belongs to the correct context
+        // (For ADMIN we already used targetUserId as unique key, for USER we used sub)
 
         return this.prisma.message.findMany({
             where: { conversationId },

@@ -155,8 +155,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 });
             }
 
-            this.server.to(roomName).emit(EVENTS.SERVER.MESSAGE_RECEIVED, message);
-            this.server.to('admin-room').emit(EVENTS.SERVER.MESSAGE_RECEIVED, message);
+            const messageWithMetadata = {
+                ...message,
+                senderRole: user.role,
+                conversationUserId: conversation.userId
+            };
+
+            this.server.to(roomName).emit(EVENTS.SERVER.MESSAGE_RECEIVED, messageWithMetadata);
+            this.server.to('admin-room').emit(EVENTS.SERVER.MESSAGE_RECEIVED, messageWithMetadata);
         }
 
         // Return the message as ACK to the sender

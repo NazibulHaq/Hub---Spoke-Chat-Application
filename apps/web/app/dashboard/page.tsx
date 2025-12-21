@@ -162,6 +162,34 @@ export default function DashboardPage() {
         }
     };
 
+    // 2. Fetch History when selectedUser changes
+    useEffect(() => {
+        if (!selectedUser) {
+            setMessages([]);
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        console.log(`[Dashboard] Fetching history for user: ${selectedUser}`);
+        fetch(`http://localhost:4000/chat/messages?userId=${selectedUser}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    // Inject conversationUserId for UI filtering consistency
+                    setMessages(data.map(m => ({
+                        ...m,
+                        status: 'read',
+                        conversationUserId: selectedUser
+                    })));
+                }
+            })
+            .catch(err => console.error('[Dashboard] Fetch history failed:', err));
+    }, [selectedUser]);
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -187,9 +215,6 @@ export default function DashboardPage() {
             console.log('Admin Socket disconnected');
         }
 
-        socket.on('connect', onConnect);
-        socket.on('disconnect', onDisconnect);
-
         if (!socket.connected) {
             socket.auth = { token };
             socket.connect();
@@ -206,30 +231,32 @@ export default function DashboardPage() {
             }
         }
 
-
-
-        // Fetch initial list of users
-        fetch('http://localhost:4000/users', {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-            .then(res => {
-                if (!res.ok) throw new Error(`Status: ${res.status}`);
-                return res.json();
+        // 1. Fetch user list logic...
+        const fetchUsers = () => {
+            fetch('http://localhost:4000/users', {
+                headers: { Authorization: `Bearer ${token}` }
             })
-            .then(data => {
-                console.log('[Dashboard] Fetch users result:', data);
-                if (Array.isArray(data)) {
-                    setUsers(data.map((u: any) => ({ ...u, status: 'offline' })));
-                    setError(null);
-                } else {
-                    console.error('Data is not array:', data);
-                    setError('Invalid data format received from server');
-                }
-            })
-            .catch(err => {
-                console.error('Fetch users failed:', err);
-                setError(`Failed to load users: ${err.message}. Is Backend running?`);
-            });
+                .then(res => {
+                    if (!res.ok) throw new Error(`Status: ${res.status}`);
+                    return res.json();
+                })
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        setUsers(data.map((u: any) => ({
+                            ...u,
+                            status: 'offline',
+                            unreadCount: u.unreadCount || 0
+                        })));
+                        setError(null);
+                    }
+                })
+                .catch(err => {
+                    console.error('Fetch users failed:', err);
+                    setError(`Failed to load users: ${err.message}`);
+                });
+        };
+
+        fetchUsers();
 
         // Listen for initial online users list (custom event)
         socket.on('initial_online_users', (onlineUsers: { userId: string; status: string }[]) => {
@@ -256,24 +283,61 @@ export default function DashboardPage() {
             });
         });
 
-        socket.on(EVENTS.SERVER.MESSAGE_RECEIVED, (msg) => {
-            setMessages((prev) => {
-                const isOwn = msg.senderId === (JSON.parse(atob(localStorage.getItem('token')!.split('.')[1])).sub);
+        socket.on(EVENTS.SERVER.MESSAGE_RECEIVED, (msg: any) => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            const currentUserId = JSON.parse(atob(token.split('.')[1])).sub;
+            const isOwn = msg.senderId === currentUserId;
 
-                if (isOwn) {
-                    const pendingIdx = prev.findIndex(m => m.status === 'sending' && m.content === msg.content);
-                    if (pendingIdx !== -1) {
-                        const newMsgs = [...prev];
-                        newMsgs[pendingIdx] = msg; // Replace with confirmed
-                        return newMsgs;
-                    }
-                } else {
-                    // Check if this message is from the currently selected user
-                    // Since we can't reliably read 'selectedUser' state here without it being a dependency (which would re-subscribe),
-                    // We rely on the separate useEffect below to Mark Read.
+            // 1. Update User List (Unread Counts & Sorting)
+            setUsers((prevUsers) => {
+                const targetUserId = msg.conversationUserId;
+                const userIdx = prevUsers.findIndex(u => u.id === targetUserId);
+
+                if (userIdx === -1) return prevUsers; // User not in list
+
+                const updatedUsers = [...prevUsers];
+                const user = { ...updatedUsers[userIdx] };
+
+                // Increment count if message is FROM user AND not currently selected
+                // Use a ref-like check for selectedUser if possible, but here we can check selectedUser inside the setter if needed
+                // Wait, setUsers doesn't have access to selectedUser unless we pass it or use a ref.
+                // Actually, we are in a closure. selectedUser might be stale.
+                // Better approach: use a functional update that captures the LATEST selectedUser if possible?
+                // No, standard state isn't available in setter like that easily without being a dependency.
+
+                // We'll use a trick: check if the user is selected inside the setter might not work if selectedUser is a local var.
+                // Let's use the `selectedUser` from the outer scope, which means this useEffect MUST depend on [selectedUser].
+                // BUT if it depends on [selectedUser], it re-subscribes every time we change user. This is actually standard in these apps.
+
+                if (msg.senderRole === 'USER' && targetUserId !== selectedUser) {
+                    user.unreadCount = (user.unreadCount || 0) + 1;
                 }
-                return [...prev, msg];
+
+                updatedUsers.splice(userIdx, 1); // Remove from current position
+                return [user, ...updatedUsers]; // Move to top
             });
+
+            // 2. Update Messages state if relevant
+            if (msg.conversationUserId === selectedUser) {
+                setMessages((prev) => {
+                    if (isOwn) {
+                        const pendingIdx = prev.findIndex(m => m.status === 'sending' && m.content === msg.content);
+                        if (pendingIdx !== -1) {
+                            const newMsgs = [...prev];
+                            newMsgs[pendingIdx] = msg;
+                            return newMsgs;
+                        }
+                    }
+                    if (prev.some(m => m.id === msg.id)) return prev;
+                    return [...prev, msg];
+                });
+
+                // Since we are looking at this chat, mark it as read immediately
+                if (msg.senderRole === 'USER') {
+                    socket.emit(EVENTS.CLIENT.MARK_AS_READ, { targetUserId: selectedUser });
+                }
+            }
         });
 
         socket.on(EVENTS.SERVER.TYPING_STATUS, (data) => {
@@ -305,7 +369,7 @@ export default function DashboardPage() {
             socket.off(EVENTS.SERVER.TYPING_STATUS);
             socket.off(EVENTS.SERVER.MESSAGE_READ);
         };
-    }, [router]);
+    }, [router, selectedUser]); // Dependent on selectedUser for real-time logic to work correctly
 
     // ...
 
@@ -357,9 +421,9 @@ export default function DashboardPage() {
                                         onClick={() => {
                                             setSelectedUser(u.id);
                                             // Mark messages as read...
-                                            const unreadIds = messages
-                                                .filter(m => m.conversationId === u.id && m.senderId === u.id && m.status !== 'read')
-                                                .map(m => m.id);
+                                            socket.emit(EVENTS.CLIENT.MARK_AS_READ, { targetUserId: u.id });
+                                            // Reset local unreadCount
+                                            setUsers(prev => prev.map(user => user.id === u.id ? { ...user, unreadCount: 0 } : user));
                                         }}
                                         className={`p-3 rounded-lg cursor-pointer flex items-center justify-between transition-colors ${selectedUser === u.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
                                             }`}
@@ -418,7 +482,7 @@ export default function DashboardPage() {
 
                             <ScrollArea className="flex-1 p-4" onScrollCapture={handleScroll}>
                                 <div className="space-y-4">
-                                    {messages.filter(m => m.conversationId /* Filter logic */).map((m, i) => (
+                                    {messages.filter(m => m.conversationUserId === selectedUser).map((m, i) => (
                                         <div key={i} className={`flex flex-col ${m.senderId !== selectedUser ? 'items-end' : 'items-start'}`}>
                                             <div className={`flex ${m.senderId !== selectedUser ? 'justify-end' : 'justify-start'} items-end gap-2 max-w-[85%]`}>
                                                 <div className={`p-3 rounded-2xl shadow-sm text-sm break-words ${m.senderId !== selectedUser

@@ -3,6 +3,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@hub-spoke/shared';
+import { MessageStatus } from '@prisma/client';
 
 @Controller('users')
 @UseGuards(AuthGuard('jwt'))
@@ -24,10 +25,26 @@ export class UsersController {
                 role: true,
                 createdAt: true,
                 lastLogin: true,
+                // Count unread messages sent BY this user
+                _count: {
+                    select: {
+                        messages: {
+                            where: {
+                                status: { not: MessageStatus.READ }
+                            }
+                        }
+                    }
+                }
             },
             orderBy: { createdAt: 'desc' }
         });
-        return users;
+
+        // Map to flat structure if needed, or frontend handles it?
+        // Frontend expects `unreadCount`. Prisma returns `_count: { messages: N }`.
+        return users.map(u => ({
+            ...u,
+            unreadCount: u._count.messages
+        }));
     }
 
     @Delete(':id')

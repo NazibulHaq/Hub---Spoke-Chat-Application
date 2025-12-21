@@ -110,6 +110,19 @@ export default function ChatPage() {
     };
 
     useEffect(() => {
+        const preventAction = (e: Event) => e.preventDefault();
+        window.addEventListener('contextmenu', preventAction);
+        window.addEventListener('copy', preventAction);
+        window.addEventListener('cut', preventAction);
+
+        return () => {
+            window.removeEventListener('contextmenu', preventAction);
+            window.removeEventListener('copy', preventAction);
+            window.removeEventListener('cut', preventAction);
+        };
+    }, []);
+
+    useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) {
             router.push('/');
@@ -157,7 +170,11 @@ export default function ChatPage() {
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) {
-                    setMessages(data.map(m => ({ ...m, status: 'sent' })));
+                    setMessages(data.map(m => ({
+                        ...m,
+                        status: 'sent',
+                        conversationUserId: userId // Inject for strict filtering to pass
+                    })));
 
                     const currentUserId = JSON.parse(atob(token.split('.')[1])).sub;
                     const hasUnreadFromSupport = data.some(m => m.senderId !== currentUserId && m.status !== 'read');
@@ -168,21 +185,19 @@ export default function ChatPage() {
             })
             .catch(console.error);
 
-        socket.on(EVENTS.SERVER.MESSAGE_RECEIVED, (msg) => {
+        socket.on(EVENTS.SERVER.MESSAGE_RECEIVED, (msg: any) => {
+            // STRICT FILTERING: Only process if this message belongs to my conversation
+            if (msg.conversationUserId !== userId) {
+                console.warn('[Chat] Received message for different user, ignoring.', msg.conversationUserId);
+                return;
+            }
+
             setMessages((prev) => {
-                const currentUserId = JSON.parse(atob(localStorage.getItem('token')!.split('.')[1])).sub;
-                const isOwn = msg.senderId === currentUserId;
+                const isOwn = msg.senderId === userId;
                 if (isOwn) {
                     const pendingIdx = prev.findIndex(m => m.status === 'sending' && m.content === msg.content);
                     if (pendingIdx !== -1) {
                         const newMsgs = [...prev];
-                        // Preserve ID if replaced by server ID, but here we likely get same ID if ACK didn't handle it yet? 
-                        // Actually msg from server has DB ID. Temp msg has temp ID.
-                        // Ideally we replace based on tempID matching if we knew it, but here we match content/status.
-                        // The Ack callback usually handles the ID update. 
-                        // If this event comes BEFORE Ack, it might duplicate if we don't match well.
-                        // Relying on Ack for own messages is safer. 
-                        // But if we receive our own message via broadcast (which we do in Gateway), we should match it.
                         newMsgs[pendingIdx] = { ...msg, status: 'sent' };
                         return newMsgs;
                     }
@@ -227,7 +242,7 @@ export default function ChatPage() {
     }, [messages, isSupportTyping]);
 
     return (
-        <div className="flex flex-col h-screen bg-slate-50">
+        <div className="flex flex-col h-screen bg-slate-50 select-none">
             <header className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-10">
                 <div className="flex items-center gap-3">
                     <div className="bg-primary text-primary-foreground h-8 w-8 rounded flex items-center justify-center font-bold">

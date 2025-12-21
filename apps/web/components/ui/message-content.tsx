@@ -12,7 +12,7 @@ interface MessageContentProps {
 
 export function MessageContent({ content, className, isOwnMessage }: MessageContentProps) {
     return (
-        <div className={cn("prose prose-sm max-w-none break-words leading-relaxed", className)}>
+        <div className={cn("text-sm leading-relaxed break-words", className)}>
             <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkBreaks]}
                 components={{
@@ -33,11 +33,11 @@ export function MessageContent({ content, className, isOwnMessage }: MessageCont
                         </a>
                     ),
                     p: ({ children }) => (
-                        <p className="mb-0 last:mb-0 inline-block">{children}</p>
+                        <p className="mb-3 last:mb-0">{children}</p>
                     ),
                     // Disable other heavy block elements if we want to keep it simple, or styling them
-                    ul: ({ children }) => <ul className="pl-4 list-disc my-1">{children}</ul>,
-                    ol: ({ children }) => <ol className="pl-4 list-decimal my-1">{children}</ol>,
+                    ul: ({ children }) => <ul className="pl-4 list-disc mb-2 last:mb-0">{children}</ul>,
+                    ol: ({ children }) => <ol className="pl-4 list-decimal mb-2 last:mb-0">{children}</ol>,
                 }}
             >
                 {content}

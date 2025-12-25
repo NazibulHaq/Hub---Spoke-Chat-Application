@@ -61,7 +61,7 @@ export default function DashboardPage() {
         console.log('[Dashboard] Attempting to update user:', editingUser?.id, { email: editUserEmail, name: editUserName });
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://127.0.0.1:4000/users/${editingUser.id}`, {
+            const res = await fetch(`http://localhost:4000/users/${editingUser.id}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -174,7 +174,7 @@ export default function DashboardPage() {
         e.preventDefault();
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://127.0.0.1:4000/users', {
+            const res = await fetch('http://localhost:4000/users', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -207,7 +207,7 @@ export default function DashboardPage() {
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://127.0.0.1:4000/users/${userId}`, {
+            const res = await fetch(`http://localhost:4000/users/${userId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -232,7 +232,7 @@ export default function DashboardPage() {
         if (!token) return;
 
         console.log(`[Dashboard] Fetching history for user: ${selectedUser}`);
-        fetch(`http://127.0.0.1:4000/chat/messages?userId=${selectedUser}`, {
+        fetch(`http://localhost:4000/chat/messages?userId=${selectedUser}`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => res.json())
@@ -296,7 +296,7 @@ export default function DashboardPage() {
 
         // 1. Fetch user list logic...
         const fetchUsers = () => {
-            fetch('http://127.0.0.1:4000/users', {
+            fetch('http://localhost:4000/users', {
                 headers: { Authorization: `Bearer ${token}` }
             })
                 .then(res => {

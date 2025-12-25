@@ -108,14 +108,18 @@ export class UsersController {
 
     @Patch(':id')
     async update(@Request() req: any, @Param('id') id: string, @Body() body: any) {
-        console.log(`[UsersController] PATCH /users/${id} called by ${req.user.email}`, body);
+        console.log(`[UsersController] PATCH /users/${id} START - requester: ${req.user.email}`);
+        console.log(`[UsersController] Received Body:`, JSON.stringify(body));
+
         if (req.user.role !== Role.ADMIN) {
+            console.warn(`[UsersController] Forbidden: UID ${req.user.sub} tried updating UID ${id}`);
             throw new ForbiddenException('Only admins can update users');
         }
 
         const { email, displayName } = body;
 
         try {
+            console.log(`[UsersController] Prisma: Executing update for ${id}...`);
             const updatedUser = await this.prisma.user.update({
                 where: { id },
                 data: {
@@ -123,10 +127,11 @@ export class UsersController {
                     displayName,
                 },
             });
+            console.log(`[UsersController] Prisma: Update SUCCESS for ${id}`);
             const { passwordHash, ...result } = updatedUser;
             return result;
         } catch (error) {
-            console.error(`[UsersController] Update failed for user ${id}:`, error);
+            console.error(`[UsersController] Update ERROR for user ${id}:`, error.message);
             if (error.code === 'P2002') {
                 throw new BadRequestException('User with this email already exists');
             }

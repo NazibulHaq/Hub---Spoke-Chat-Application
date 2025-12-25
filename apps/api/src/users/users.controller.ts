@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -106,13 +106,9 @@ export class UsersController {
         return result;
     }
 
-    @Post(':id') // Using Post for compatibility or Patch? Usually Patch.
-    // Let's use standard @Patch if available, but I see @Post used for many things.
-    // Actually, I'll use @Post(':id') or @Patch(':id'). Let's stick to standard @Post if @Patch is not imported.
-    // Wait, I see Delete, Post, Get imported. I'll add Patch to imports.
-    @Post(':id/update') // Using a unique sub-route to avoid conflict with create if needed, 
-    // but usually PATCH :id is better.
+    @Patch(':id')
     async update(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+        console.log(`[UsersController] PATCH /users/${id} called by ${req.user.email}`, body);
         if (req.user.role !== Role.ADMIN) {
             throw new ForbiddenException('Only admins can update users');
         }
@@ -130,6 +126,7 @@ export class UsersController {
             const { passwordHash, ...result } = updatedUser;
             return result;
         } catch (error) {
+            console.error(`[UsersController] Update failed for user ${id}:`, error);
             if (error.code === 'P2002') {
                 throw new BadRequestException('User with this email already exists');
             }

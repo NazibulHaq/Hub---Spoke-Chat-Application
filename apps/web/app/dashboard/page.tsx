@@ -56,10 +56,11 @@ export default function DashboardPage() {
 
     const handleUpdateUser = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('[Dashboard] Attempting to update user:', editingUser?.id, { email: editUserEmail, name: editUserName });
         try {
-            const token = localStorage.getItem('access_token');
-            const res = await fetch(`http://localhost:4000/users/${editingUser.id}/update`, {
-                method: 'POST',
+            const token = localStorage.getItem('token');
+            const res = await fetch(`http://127.0.0.1:4000/users/${editingUser.id}`, {
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
@@ -69,6 +70,8 @@ export default function DashboardPage() {
                     displayName: editUserName
                 })
             });
+
+            console.log('[Dashboard] Server responded with status:', res.status);
 
             if (!res.ok) {
                 const data = await res.json();
@@ -162,7 +165,7 @@ export default function DashboardPage() {
         e.preventDefault();
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:4000/users', {
+            const res = await fetch('http://127.0.0.1:4000/users', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -195,7 +198,7 @@ export default function DashboardPage() {
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:4000/users/${userId}`, {
+            const res = await fetch(`http://127.0.0.1:4000/users/${userId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -220,7 +223,7 @@ export default function DashboardPage() {
         if (!token) return;
 
         console.log(`[Dashboard] Fetching history for user: ${selectedUser}`);
-        fetch(`http://localhost:4000/chat/messages?userId=${selectedUser}`, {
+        fetch(`http://127.0.0.1:4000/chat/messages?userId=${selectedUser}`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => res.json())
@@ -284,7 +287,7 @@ export default function DashboardPage() {
 
         // 1. Fetch user list logic...
         const fetchUsers = () => {
-            fetch('http://localhost:4000/users', {
+            fetch('http://127.0.0.1:4000/users', {
                 headers: { Authorization: `Bearer ${token}` }
             })
                 .then(res => {
@@ -742,6 +745,11 @@ export default function DashboardPage() {
                                         <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Save Changes</Button>
                                         <Button type="button" variant="outline" onClick={() => { setIsEditingUser(false); setEditingUser(null); }}>Cancel</Button>
                                     </div>
+                                    {error && (
+                                        <div className="col-span-full mt-2 text-xs text-red-500 font-medium animate-in fade-in animate-pulse">
+                                            Error: {error}
+                                        </div>
+                                    )}
                                 </form>
                             </div>
                         )}

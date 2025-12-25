@@ -16,7 +16,7 @@ export default function DashboardPage() {
     const [users, setUsers] = useState<any[]>([]);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
     const [messages, setMessages] = useState<any[]>([]);
-    const [input, setInput] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
     const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
 
@@ -34,6 +34,7 @@ export default function DashboardPage() {
     const TrashIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>;
     const PlusIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14" /><path d="M12 5v14" /></svg>;
     const XIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>;
+    const SearchIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>;
 
     const scrollToBottom = () => {
         scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -399,12 +400,43 @@ export default function DashboardPage() {
         }
     }, [messages, typingUsers]);
 
+    const filteredUsers = users.filter((u) => {
+        const query = searchQuery.toLowerCase();
+        return (
+            (u.displayName || '').toLowerCase().includes(query) ||
+            (u.email || '').toLowerCase().includes(query)
+        );
+    });
+
     // ...
 
     return (
         <div className="flex h-screen bg-background overflow-hidden">
             {/* Sidebar */}
             <div className="w-80 border-r bg-muted/10 flex flex-col h-full border-r">
+                {/* WhatsApp-style Search Bar */}
+                <div className="p-3 bg-background border-b sticky top-0 z-20">
+                    <div className="relative group">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+                            <SearchIcon className="w-4 h-4" />
+                        </div>
+                        <Input
+                            placeholder="Search or start a new chat"
+                            className="pl-10 pr-10 py-5 bg-muted/50 border-none rounded-xl focus-visible:ring-1 focus-visible:ring-primary/20 transition-all placeholder:text-muted-foreground/70"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full hover:bg-muted"
+                            >
+                                <XIcon className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
                 <div className="flex border-b">
                     <button
                         onClick={() => setActiveTab('chat')}
@@ -443,7 +475,7 @@ export default function DashboardPage() {
                         </div>
                         <ScrollArea className="flex-1 min-h-0">
                             <div className="p-2 space-y-2">
-                                {users.map((u) => (
+                                {filteredUsers.map((u) => (
                                     <div
                                         key={u.id}
                                         onClick={() => {
@@ -480,9 +512,13 @@ export default function DashboardPage() {
                                         )}
                                     </div>
                                 ))}
-                                {users.length === 0 && (
-                                    <div className="text-center text-sm text-muted-foreground p-4">
-                                        No users found
+                                {filteredUsers.length === 0 && (
+                                    <div className="text-center text-sm text-muted-foreground py-10 px-4">
+                                        <div className="bg-muted w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 opacity-50">
+                                            <SearchIcon className="w-5 h-5" />
+                                        </div>
+                                        <p className="font-medium text-foreground/80">No results found</p>
+                                        <p className="text-xs mt-1">Try a different name or email</p>
                                     </div>
                                 )}
                             </div>
@@ -648,7 +684,7 @@ export default function DashboardPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {users.map((u) => (
+                                    {filteredUsers.map((u) => (
                                         <tr key={u.id} className="border-b hover:bg-muted/50 transition-colors">
                                             <td className="px-6 py-4 font-medium">{u.displayName || '-'}</td>
                                             <td className="px-6 py-4">{u.email}</td>
@@ -664,10 +700,10 @@ export default function DashboardPage() {
                                             </td>
                                         </tr>
                                     ))}
-                                    {users.length === 0 && (
+                                    {filteredUsers.length === 0 && (
                                         <tr>
-                                            <td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">
-                                                No users found.
+                                            <td colSpan={3} className="px-6 py-8 text-center text-muted-foreground">
+                                                No users matching "{searchQuery}"
                                             </td>
                                         </tr>
                                     )}

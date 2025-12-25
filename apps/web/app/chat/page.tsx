@@ -269,8 +269,16 @@ export default function ChatPage() {
             <ScrollArea className="flex-1 min-h-0 p-4" onScrollCapture={handleScroll}>
                 <div className="space-y-4 max-w-2xl mx-auto min-h-[calc(100vh-140px)]">
                     {messages.length === 0 && (
-                        <div className="text-center text-muted-foreground py-10">
-                            Welcome! How can we help you today?
+                        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                            <div className="bg-blue-100 p-4 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-messages-square text-blue-600"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z" /><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" /></svg>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-semibold text-slate-800 tracking-tight">Welcome back!</h2>
+                                <p className="text-muted-foreground mt-1 max-w-[280px] mx-auto text-sm leading-relaxed">
+                                    Your previous session has been closed for your privacy. How can we help you today?
+                                </p>
+                            </div>
                         </div>
                     )}
                     {messages.map((m, i) => (

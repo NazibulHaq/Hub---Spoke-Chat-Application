@@ -26,6 +26,11 @@ export default function DashboardPage() {
     const [isAtBottom, setIsAtBottom] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [debugInfo, setDebugInfo] = useState({ role: 'Loading...', id: 'Loading...', displayName: 'Loading...' });
+    const [isCreatingUser, setIsCreatingUser] = useState(false);
+    const [isEditingUser, setIsEditingUser] = useState(false);
+    const [editingUser, setEditingUser] = useState<any>(null);
+    const [editUserName, setEditUserName] = useState('');
+    const [editUserEmail, setEditUserEmail] = useState('');
 
     // Icons
     const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-clock text-muted-foreground"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
@@ -34,10 +39,42 @@ export default function DashboardPage() {
     const TrashIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>;
     const PlusIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M5 12h14" /><path d="M12 5v14" /></svg>;
     const XIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>;
+    const EditIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>;
     const SearchIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>;
 
     const scrollToBottom = () => {
         scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    const handleUpdateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('access_token');
+            const res = await fetch(`http://localhost:4000/users/${editingUser.id}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    email: editUserEmail,
+                    displayName: editUserName
+                })
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || 'Failed to update user');
+            }
+
+            const updatedUser = await res.json();
+            setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+            setIsEditingUser(false);
+            setEditingUser(null);
+        } catch (err: any) {
+            setError(err.message);
+            setTimeout(() => setError(null), 3000);
+        }
     };
 
     const handleLogout = () => {
@@ -674,6 +711,39 @@ export default function DashboardPage() {
                             </div>
                         )}
 
+                        {/* Edit User Form (Inline Card) */}
+                        {isEditingUser && (
+                            <div className="mb-6 p-4 border rounded-lg bg-blue-50/50 border-blue-200 shadow-sm animate-in fade-in slide-in-from-top-2">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-semibold text-blue-900">Edit User: {editingUser?.email}</h3>
+                                    <Button variant="ghost" size="sm" onClick={() => { setIsEditingUser(false); setEditingUser(null); }}><XIcon className="h-4 w-4" /></Button>
+                                </div>
+                                <form onSubmit={handleUpdateUser} className="grid gap-4 md:grid-cols-3 items-end">
+                                    <div className="grid gap-2">
+                                        <label className="text-sm font-medium text-blue-800">New Display Name</label>
+                                        <Input
+                                            placeholder="John Doe"
+                                            value={editUserName}
+                                            onChange={e => setEditUserName(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <label className="text-sm font-medium text-blue-800">New Email Address</label>
+                                        <Input
+                                            placeholder="user@example.com"
+                                            value={editUserEmail}
+                                            onChange={e => setEditUserEmail(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Save Changes</Button>
+                                        <Button type="button" variant="outline" onClick={() => { setIsEditingUser(false); setEditingUser(null); }}>Cancel</Button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
                         <div className="border rounded-md">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
@@ -688,7 +758,20 @@ export default function DashboardPage() {
                                         <tr key={u.id} className="border-b hover:bg-muted/50 transition-colors">
                                             <td className="px-6 py-4 font-medium">{u.displayName || '-'}</td>
                                             <td className="px-6 py-4">{u.email}</td>
-                                            <td className="px-6 py-4 text-right">
+                                            <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                                    onClick={() => {
+                                                        setEditingUser(u);
+                                                        setEditUserName(u.displayName || '');
+                                                        setEditUserEmail(u.email);
+                                                        setIsEditingUser(true);
+                                                    }}
+                                                >
+                                                    <EditIcon className="h-4 w-4 mr-2" /> Edit
+                                                </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"

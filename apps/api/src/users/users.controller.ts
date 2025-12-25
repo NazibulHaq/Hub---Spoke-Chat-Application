@@ -105,4 +105,38 @@ export class UsersController {
         const { passwordHash, ...result } = user;
         return result;
     }
+
+    @Post(':id') // Using Post for compatibility or Patch? Usually Patch.
+    // Let's use standard @Patch if available, but I see @Post used for many things.
+    // Actually, I'll use @Post(':id') or @Patch(':id'). Let's stick to standard @Post if @Patch is not imported.
+    // Wait, I see Delete, Post, Get imported. I'll add Patch to imports.
+    @Post(':id/update') // Using a unique sub-route to avoid conflict with create if needed, 
+    // but usually PATCH :id is better.
+    async update(@Request() req: any, @Param('id') id: string, @Body() body: any) {
+        if (req.user.role !== Role.ADMIN) {
+            throw new ForbiddenException('Only admins can update users');
+        }
+
+        const { email, displayName } = body;
+
+        try {
+            const updatedUser = await this.prisma.user.update({
+                where: { id },
+                data: {
+                    email,
+                    displayName,
+                },
+            });
+            const { passwordHash, ...result } = updatedUser;
+            return result;
+        } catch (error) {
+            if (error.code === 'P2002') {
+                throw new BadRequestException('User with this email already exists');
+            }
+            if (error.code === 'P2025') {
+                throw new NotFoundException('User not found');
+            }
+            throw error;
+        }
+    }
 }

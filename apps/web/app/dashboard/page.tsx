@@ -16,6 +16,7 @@ export default function DashboardPage() {
     const [users, setUsers] = useState<any[]>([]);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
     const [messages, setMessages] = useState<any[]>([]);
+    const [input, setInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const router = useRouter();
     const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
@@ -26,7 +27,14 @@ export default function DashboardPage() {
     const [isAtBottom, setIsAtBottom] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [debugInfo, setDebugInfo] = useState({ role: 'Loading...', id: 'Loading...', displayName: 'Loading...' });
+
+    // User Management State
     const [isCreatingUser, setIsCreatingUser] = useState(false);
+    const [newUserName, setNewUserName] = useState('');
+    const [newUserEmail, setNewUserEmail] = useState('');
+    const [newUserPassword, setNewUserPassword] = useState('');
+
+    // Edit User State
     const [isEditingUser, setIsEditingUser] = useState(false);
     const [editingUser, setEditingUser] = useState<any>(null);
     const [editUserName, setEditUserName] = useState('');
@@ -149,12 +157,6 @@ export default function DashboardPage() {
 
     // Tab State
     const [activeTab, setActiveTab] = useState<'chat' | 'users'>('chat');
-
-    // User Management State
-    const [isCreatingUser, setIsCreatingUser] = useState(false);
-    const [newUserName, setNewUserName] = useState('');
-    const [newUserEmail, setNewUserEmail] = useState('');
-    const [newUserPassword, setNewUserPassword] = useState('');
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -41,11 +41,22 @@ export class ChatController {
             return [];
         }
 
-        // Final security check: Ensure the conversation exists and belongs to the correct context
-        // (For ADMIN we already used targetUserId as unique key, for USER we used sub)
+        const where: any = { conversationId };
+
+        if (user.role === Role.USER) {
+            // Fetch user's lastLogin to filter history
+            const currentUser = await this.prisma.user.findUnique({
+                where: { id: currentUserId },
+                select: { lastLogin: true }
+            });
+
+            if (currentUser?.lastLogin) {
+                where.createdAt = { gt: currentUser.lastLogin };
+            }
+        }
 
         return this.prisma.message.findMany({
-            where: { conversationId },
+            where,
             orderBy: { createdAt: 'asc' },
             take: 100, // Limit to last 100 messages
         });

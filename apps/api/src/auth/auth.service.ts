@@ -21,6 +21,12 @@ export class AuthService {
     }
 
     async login(user: any) {
+        // Update last login timestamp
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() }
+        });
+
         const payload = { email: user.email, sub: user.id, role: user.role, displayName: user.displayName };
         return {
             access_token: this.jwtService.sign(payload),

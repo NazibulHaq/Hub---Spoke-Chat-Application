@@ -39,6 +39,7 @@ export default function DashboardPage() {
     const [editingUser, setEditingUser] = useState<any>(null);
     const [editUserName, setEditUserName] = useState('');
     const [editUserEmail, setEditUserEmail] = useState('');
+    const [isSavingUser, setIsSavingUser] = useState(false);
 
     // Icons
     const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-clock text-muted-foreground"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
@@ -56,6 +57,7 @@ export default function DashboardPage() {
 
     const handleUpdateUser = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsSavingUser(true);
         console.log('[Dashboard] Attempting to update user:', editingUser?.id, { email: editUserEmail, name: editUserName });
         try {
             const token = localStorage.getItem('token');
@@ -79,12 +81,19 @@ export default function DashboardPage() {
             }
 
             const updatedUser = await res.json();
+            console.log('[Dashboard] Update successful:', updatedUser);
+
             setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
             setIsEditingUser(false);
             setEditingUser(null);
+            alert('User updated successfully!');
         } catch (err: any) {
+            console.error('[Dashboard] Update error:', err);
             setError(err.message);
-            setTimeout(() => setError(null), 3000);
+            alert('Error updating user: ' + err.message);
+            setTimeout(() => setError(null), 5000);
+        } finally {
+            setIsSavingUser(false);
         }
     };
 
@@ -742,7 +751,9 @@ export default function DashboardPage() {
                                         />
                                     </div>
                                     <div className="flex gap-2">
-                                        <Button type="submit" className="bg-blue-600 hover:bg-blue-700">Save Changes</Button>
+                                        <Button type="submit" disabled={isSavingUser} className="bg-blue-600 hover:bg-blue-700 min-w-[120px]">
+                                            {isSavingUser ? 'Saving...' : 'Save Changes'}
+                                        </Button>
                                         <Button type="button" variant="outline" onClick={() => { setIsEditingUser(false); setEditingUser(null); }}>Cancel</Button>
                                     </div>
                                     {error && (

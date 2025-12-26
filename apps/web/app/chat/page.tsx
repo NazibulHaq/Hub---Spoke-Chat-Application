@@ -33,10 +33,22 @@ export default function ChatPage() {
         scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        socket.disconnect();
-        router.push('/');
+    const handleLogout = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (token) {
+                await fetch('http://localhost:4000/auth/logout', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
+        } catch (error) {
+            console.error('[Chat] Logout error:', error);
+        } finally {
+            localStorage.removeItem('token');
+            socket.disconnect();
+            router.push('/');
+        }
     };
 
     const sendMessage = async (content: string, retryId?: string) => {

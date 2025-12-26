@@ -4,11 +4,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthGuard } from '@nestjs/passport';
 import { Role } from '@hub-spoke/shared';
 import { MessageStatus } from '@prisma/client';
+import { ActivityLogsService } from '../activity-logs/activity-logs.service';
 
 @Controller('users')
 @UseGuards(AuthGuard('jwt'))
 export class UsersController {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private activityLogs: ActivityLogsService,
+    ) { }
 
     @Get()
     async findAll(@Request() req: any) {
@@ -63,6 +67,8 @@ export class UsersController {
 
         try {
             await this.prisma.user.delete({ where: { id } });
+            // Log the activity
+            await this.activityLogs.createLog(req.user.sub, 'USER_DELETE', `Admin ${req.user.email} deleted user ID ${id}`);
             return { message: 'User deleted successfully', id };
         } catch (error) {
             if (error.code === 'P2025') {
@@ -102,6 +108,9 @@ export class UsersController {
             },
         });
 
+        // Log the activity
+        await this.activityLogs.createLog(req.user.sub, 'USER_CREATE', `Admin ${req.user.email} created user ${email}`);
+
         const { passwordHash, ...result } = user;
         return result;
     }
@@ -128,6 +137,10 @@ export class UsersController {
                 },
             });
             console.log(`[UsersController] Prisma: Update SUCCESS for ${id}`);
+
+            // Log the activity
+            await this.activityLogs.createLog(req.user.sub, 'USER_UPDATE', `Admin ${req.user.email} updated user ID ${id}`);
+
             const { passwordHash, ...result } = updatedUser;
             return result;
         } catch (error) {

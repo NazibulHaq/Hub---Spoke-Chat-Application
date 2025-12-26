@@ -61,7 +61,9 @@ export default function DashboardPage() {
         console.log('[Dashboard] Attempting to update user:', editingUser?.id, { email: editUserEmail, name: editUserName });
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:4000/users/${editingUser.id}`, {
+            const url = `http://localhost:4000/users/${editingUser.id}`;
+            console.log('[Dashboard] Fetching:', url);
+            const res = await fetch(url, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -97,10 +99,22 @@ export default function DashboardPage() {
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        socket.disconnect();
-        router.push('/');
+    const handleLogout = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (token) {
+                await fetch('http://localhost:4000/auth/logout', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            }
+        } catch (error) {
+            console.error('[Dashboard] Logout error:', error);
+        } finally {
+            localStorage.removeItem('token');
+            socket.disconnect();
+            router.push('/');
+        }
     };
 
     const sendMessage = (content: string, retryId?: string) => {

@@ -1,13 +1,61 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  passwordHash  String
+  role          Role          @default(USER)
+  createdAt     DateTime      @default(now())
+  lastLogin     DateTime?
+  displayName   String?
+  conversations Conversation?
+  messages      Message[]
+  activityLogs  ActivityLog[]
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@index([userId])
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  content        String
+  createdAt      DateTime      @default(now())
+  status         MessageStatus @default(SENT)
+  senderId       String
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   // e.g., "LOGIN", "LOGOUT", "USER_EDIT"
+  details   String?  // Description or JSON
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 enum Role {
@@ -15,55 +63,8 @@ enum Role {
   USER
 }
 
-model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  displayName   String?
-  passwordHash  String
-  role          Role      @default(USER)
-  createdAt     DateTime  @default(now())
-  lastLogin     DateTime?
-  
-  // Relations
-  conversations Conversation[] // A user typically has one, but model allows flexibility
-  messages      Message[]
-}
-
-model Conversation {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // The "Spoke" User
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Messages in this conversation
-  messages  Message[]
-
-  @@index([userId])
-}
-
 enum MessageStatus {
   SENT
   DELIVERED
   READ
-}
-
-model Message {
-  id             String       @id @default(uuid())
-  content        String
-  createdAt      DateTime     @default(now())
-  status         MessageStatus @default(SENT)
-
-  // Sender
-  senderId       String
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-
-  // Conversation
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  @@index([conversationId])
-  @@index([senderId])
 }

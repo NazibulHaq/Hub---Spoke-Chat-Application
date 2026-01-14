@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { socket } from '@/lib/socket';
+import { getApiUrl } from '@/lib/api-config';
 import { EVENTS } from '@hub-spoke/shared';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatInput } from '@/components/ui/chat-input';
@@ -37,7 +38,7 @@ export default function ChatPage() {
         try {
             const token = localStorage.getItem('token');
             if (token) {
-                await fetch('http://localhost:4000/auth/logout', {
+                await fetch(`${getApiUrl()}/auth/logout`, {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -182,7 +183,7 @@ export default function ChatPage() {
         }
 
         // Fetch history
-        fetch('http://localhost:4000/chat/messages', {
+        fetch(`${getApiUrl()}/chat/messages`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => res.json())

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { socket } from '@/lib/socket';
+import { getApiUrl } from '@/lib/api-config';
 import { EVENTS } from '@hub-spoke/shared';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -61,7 +62,7 @@ export default function DashboardPage() {
         console.log('[Dashboard] Attempting to update user:', editingUser?.id, { email: editUserEmail, name: editUserName });
         try {
             const token = localStorage.getItem('token');
-            const url = `http://localhost:4000/users/${editingUser.id}`;
+            const url = `${getApiUrl()}/users/${editingUser.id}`;
             console.log('[Dashboard] Fetching:', url);
             const res = await fetch(url, {
                 method: 'PATCH',
@@ -103,7 +104,7 @@ export default function DashboardPage() {
         try {
             const token = localStorage.getItem('token');
             if (token) {
-                await fetch('http://localhost:4000/auth/logout', {
+                await fetch(`${getApiUrl()}/auth/logout`, {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -188,7 +189,7 @@ export default function DashboardPage() {
         e.preventDefault();
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:4000/users', {
+            const res = await fetch(`${getApiUrl()}/users`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -221,7 +222,7 @@ export default function DashboardPage() {
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:4000/users/${userId}`, {
+            const res = await fetch(`${getApiUrl()}/users/${userId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -246,7 +247,7 @@ export default function DashboardPage() {
         if (!token) return;
 
         console.log(`[Dashboard] Fetching history for user: ${selectedUser}`);
-        fetch(`http://localhost:4000/chat/messages?userId=${selectedUser}`, {
+        fetch(`${getApiUrl()}/chat/messages?userId=${selectedUser}`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => res.json())
@@ -310,7 +311,7 @@ export default function DashboardPage() {
 
         // 1. Fetch user list logic...
         const fetchUsers = () => {
-            fetch('http://localhost:4000/users', {
+            fetch(`${getApiUrl()}/users`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
                 .then(res => {

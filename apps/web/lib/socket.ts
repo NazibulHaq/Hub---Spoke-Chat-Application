@@ -1,6 +1,9 @@
 import { io } from 'socket.io-client';
 
-export const socket = io('http://localhost:4000', {
+// Socket connects to origin but with path prefix if needed
+// For rewrites, we might need to adjust path
+export const socket = io({
     autoConnect: false,
     withCredentials: false,
+    path: '/api/socket.io', // rewritten to /socket.io on backend
 });

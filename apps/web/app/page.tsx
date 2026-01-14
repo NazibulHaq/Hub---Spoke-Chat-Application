@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { socket } from '@/lib/socket';
+import { getApiUrl } from '@/lib/api-config';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`http://localhost:4000/auth/${endpoint}`, {
+      const res = await fetch(`${getApiUrl()}/auth/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, role: 'USER', displayName }), // Send displayName

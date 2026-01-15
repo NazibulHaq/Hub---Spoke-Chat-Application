@@ -5,5 +5,5 @@ import { io } from 'socket.io-client';
 export const socket = io({
     autoConnect: false,
     withCredentials: false,
-    path: '/api/socket.io', // rewritten to /socket.io on backend
+    path: '/api/socket.io',
 });

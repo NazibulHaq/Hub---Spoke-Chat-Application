@@ -35,11 +35,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     async handleConnection(client: Socket) {
         try {
+            console.log(`[ChatGateway] New connection attempt from ${client.id}`);
             const token = client.handshake.auth.token || client.handshake.headers.authorization;
             if (!token) {
+                console.warn(`[ChatGateway] Connection ${client.id} rejected: No token`);
                 client.disconnect();
                 return;
             }
+            // Log token (truncated) for debug
+            console.log(`[ChatGateway] Token received: ${token.substring(0, 20)}...`);
+
             const payload = this.jwtService.verify(token, { secret: process.env.JWT_SECRET || 'secretKey' });
             client.data.user = payload;
             console.log(`[ChatGateway] Client connected: ${payload.sub} (${payload.email}) Role: ${payload.role}`);

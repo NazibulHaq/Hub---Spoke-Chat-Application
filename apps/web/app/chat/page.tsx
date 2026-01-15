@@ -54,12 +54,12 @@ export default function ChatPage() {
 
     const sendMessage = async (content: string, retryId?: string) => {
         if (!content) return;
+        console.log('[Chat] Sending message:', content); // Debug log
 
         // Check connection
         if (!socket.connected) {
             console.warn('Socket disconnected, attempting to reconnect...');
             socket.connect();
-            // We can still try to emit (it buffers), but user should know
         }
 
         const tempId = retryId || 'temp-' + Date.now();
@@ -73,20 +73,19 @@ export default function ChatPage() {
 
         if (!retryId) {
             setInput('');
+            console.log('[Chat] Optimistic add:', tempMsg); // Debug log
             setMessages(prev => [...prev, tempMsg]);
         } else {
-            // If retrying, set status back to sending
             setMessages(prev => prev.map(m => m.id === retryId ? { ...m, status: 'sending' } : m));
         }
 
-        // Timeout Logic
         const timeout = setTimeout(() => {
             setMessages(prev => prev.map(m => m.id === tempId && m.status === 'sending' ? { ...m, status: 'failed' } : m));
         }, 5000);
 
-        // Emission with Ack
         socket.emit(EVENTS.CLIENT.SEND_MESSAGE, { content: content }, (response: any) => {
             clearTimeout(timeout);
+            console.log('[Chat] Ack response:', response); // Debug log
             if (response && response.id) {
                 setMessages(prev => prev.map(m => m.id === tempId ? { ...response, status: 'sent' } : m));
             } else {
@@ -163,8 +162,14 @@ export default function ChatPage() {
             console.log('Socket disconnected');
         }
 
+        function onConnectError(err: any) {
+            console.error('[Chat] Socket connection error:', err);
+            // alert('Socket connection failed: ' + err.message); // Optional: visual feedback
+        }
+
         socket.on('connect', onConnect);
         socket.on('disconnect', onDisconnect);
+        socket.on('connect_error', onConnectError);
 
         if (!socket.connected) {
             socket.auth = { token };
@@ -246,6 +251,7 @@ export default function ChatPage() {
         return () => {
             socket.off('connect', onConnect);
             socket.off('disconnect', onDisconnect);
+            socket.off('connect_error');
             socket.off(EVENTS.SERVER.MESSAGE_RECEIVED);
             socket.off(EVENTS.SERVER.TYPING_STATUS);
             socket.off(EVENTS.SERVER.MESSAGE_READ);

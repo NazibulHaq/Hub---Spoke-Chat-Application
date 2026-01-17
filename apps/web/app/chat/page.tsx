@@ -9,6 +9,7 @@ import { ChatInput } from '@/components/ui/chat-input';
 import { MessageContent } from '@/components/ui/message-content';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { format, isSameDay, isToday, isYesterday } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
 export default function ChatPage() {
@@ -29,6 +30,21 @@ export default function ChatPage() {
     const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-clock text-muted-foreground"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
     const AlertIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="red" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-circle-alert"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" /></svg>;
     const CheckIcon = ({ className }: { className?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12" /></svg>;
+
+    // Helper to render date headers
+    const renderDateHeader = (date: Date) => {
+        let text = format(date, 'MMMM d, yyyy');
+        if (isToday(date)) text = 'Today';
+        else if (isYesterday(date)) text = 'Yesterday';
+
+        return (
+            <div className="flex justify-center my-4 sticky top-2 z-10">
+                <span className="bg-slate-200 text-slate-600 text-xs py-1 px-3 rounded-full shadow-sm font-medium border border-slate-300">
+                    {text}
+                </span>
+            </div>
+        );
+    };
 
     const scrollToBottom = () => {
         scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -164,7 +180,6 @@ export default function ChatPage() {
 
         function onConnectError(err: any) {
             console.error('[Chat] Socket connection error:', err);
-            // alert('Socket connection failed: ' + err.message); // Optional: visual feedback
         }
 
         socket.on('connect', onConnect);
@@ -286,7 +301,7 @@ export default function ChatPage() {
             </header>
 
             <ScrollArea className="flex-1 min-h-0 p-4" onScrollCapture={handleScroll}>
-                <div className="space-y-4 max-w-2xl mx-auto min-h-[calc(100vh-140px)]">
+                <div className="space-y-4 max-w-2xl mx-auto min-h-[calc(100vh-140px)] pt-8">
                     {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
                             <div className="bg-blue-100 p-4 rounded-full">
@@ -300,70 +315,70 @@ export default function ChatPage() {
                             </div>
                         </div>
                     )}
-                    {messages.map((m, i) => (
-                        <div key={i} className={`flex flex-col ${m.senderId === userId ? 'items-end' : 'items-start'}`}>
-                            {/* Name above bubble */}
-                            <span className="text-[10px] text-muted-foreground mb-1 px-1 font-medium uppercase tracking-wider">
-                                {m.senderId === userId ? myName : 'Support Agent'}
-                            </span>
-                            <div className={`flex ${m.senderId === userId ? 'justify-end' : 'justify-start'} items-end gap-2 max-w-[85%]`}>
-                                {m.senderId !== userId && (
-                                    <Avatar className="h-6 w-6 mr-1 mb-0.5">
-                                        <AvatarFallback>A</AvatarFallback>
-                                    </Avatar>
-                                )}
-                                <div className={`p-3 rounded-2xl shadow-sm text-sm break-words ${m.senderId === userId
-                                    ? 'bg-blue-600 text-white rounded-br-none'
-                                    : 'bg-white border rounded-bl-none'
-                                    }`}>
-                                    <MessageContent
-                                        content={m.content}
-                                        isOwnMessage={m.senderId === userId}
-                                    />
+
+                    {messages.map((m, i) => {
+                        const currentDate = new Date(m.createdAt || Date.now());
+                        const prevDate = i > 0 ? new Date(messages[i - 1].createdAt || Date.now()) : null;
+                        const showDateHeader = !prevDate || !isSameDay(currentDate, prevDate);
+
+                        return (
+                            <div key={m.id || i}>
+                                {showDateHeader && renderDateHeader(currentDate)}
+
+                                <div className={`flex flex-col ${m.senderId === userId ? 'items-end' : 'items-start'} mb-4`}>
+                                    <span className="text-[10px] text-muted-foreground mb-1 px-1 font-medium uppercase tracking-wider">
+                                        {m.senderId === userId ? myName : 'Support Agent'}
+                                    </span>
+                                    <div className={`flex ${m.senderId === userId ? 'justify-end' : 'justify-start'} items-end gap-2 max-w-[85%]`}>
+                                        {m.senderId !== userId && (
+                                            <Avatar className="h-6 w-6 mr-1 mb-0.5">
+                                                <AvatarFallback>A</AvatarFallback>
+                                            </Avatar>
+                                        )}
+                                        <div className={`p-3 rounded-2xl shadow-sm text-sm break-words relative min-w-[80px] ${m.senderId === userId
+                                            ? 'bg-blue-600 text-white rounded-br-none'
+                                            : 'bg-white border rounded-bl-none'
+                                            }`}>
+                                            <MessageContent
+                                                content={m.content}
+                                                isOwnMessage={m.senderId === userId}
+                                            />
+                                            {/* Timestamp */}
+                                            <div className={`text-[9px] text-right mt-1 ${m.senderId === userId ? 'text-blue-100' : 'text-slate-400'}`}>
+                                                {format(currentDate, 'h:mm a')}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Status Indicator */}
+                                    {m.senderId === userId && (
+                                        <div className="text-[10px] text-muted-foreground mt-1 mr-1 flex items-center gap-1">
+                                            {m.status === 'sending' && <ClockIcon />}
+                                            {m.status === 'sent' && <CheckIcon className="text-gray-400" />}
+                                            {(m.status === 'delivered' || m.status === 'DELIVERED') && (
+                                                <div className="flex -space-x-1">
+                                                    <CheckIcon className="text-gray-400" />
+                                                    <CheckIcon className="text-gray-400" />
+                                                </div>
+                                            )}
+                                            {(m.status === 'read' || m.status === 'READ') && (
+                                                <div className="flex -space-x-1">
+                                                    <CheckIcon className="text-blue-500" />
+                                                    <CheckIcon className="text-blue-500" />
+                                                </div>
+                                            )}
+                                            {m.status === 'failed' && (
+                                                <div className="flex items-center gap-2">
+                                                    <AlertIcon /> <span className="text-red-500">Failed</span>
+                                                    <button onClick={() => handleRetry(m)} className="text-blue-500 hover:underline font-bold">Retry</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-
-                            {/* Status Indicator for Own Messages */}
-                            {m.senderId === userId && (
-                                <div className="text-[10px] text-muted-foreground mt-1 mr-1 flex items-center gap-1">
-                                    {m.status === 'sending' && <ClockIcon />}
-
-                                    {/* SENT: 1 Grey Check */}
-                                    {m.status === 'sent' && (
-                                        <CheckIcon className="text-gray-400" />
-                                    )}
-
-                                    {/* DELIVERED: 2 Grey Checks */}
-                                    {(m.status === 'delivered' || m.status === 'DELIVERED') && (
-                                        <div className="flex -space-x-1">
-                                            <CheckIcon className="text-gray-400" />
-                                            <CheckIcon className="text-gray-400" />
-                                        </div>
-                                    )}
-
-                                    {/* READ: 2 Blue Checks */}
-                                    {(m.status === 'read' || m.status === 'READ') && (
-                                        <div className="flex -space-x-1">
-                                            <CheckIcon className="text-blue-500" />
-                                            <CheckIcon className="text-blue-500" />
-                                        </div>
-                                    )}
-
-                                    {m.status === 'failed' && (
-                                        <div className="flex items-center gap-2">
-                                            <AlertIcon /> <span className="text-red-500">Failed</span>
-                                            <button
-                                                onClick={() => handleRetry(m)}
-                                                className="text-blue-500 hover:underline font-bold"
-                                            >
-                                                Retry
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {isSupportTyping && (
                         <div className="flex justify-start">
@@ -377,7 +392,6 @@ export default function ChatPage() {
                 </div>
             </ScrollArea>
 
-            {/* Floating Badge */}
             {showScrollButton && (
                 <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-20">
                     <Button

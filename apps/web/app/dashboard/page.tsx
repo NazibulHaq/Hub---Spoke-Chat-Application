@@ -12,6 +12,7 @@ import { ChatInput } from '@/components/ui/chat-input';
 import { MessageContent } from '@/components/ui/message-content';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { format, isSameDay, isToday, isYesterday } from 'date-fns';
 
 export default function DashboardPage() {
     const [users, setUsers] = useState<any[]>([]);
@@ -54,6 +55,21 @@ export default function DashboardPage() {
 
     const scrollToBottom = () => {
         scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // Helper to render date headers
+    const renderDateHeader = (date: Date) => {
+        let text = format(date, 'MMMM d, yyyy');
+        if (isToday(date)) text = 'Today';
+        else if (isYesterday(date)) text = 'Yesterday';
+
+        return (
+            <div className="flex justify-center my-4 sticky top-2 z-10">
+                <span className="bg-slate-200 text-slate-600 text-xs py-1 px-3 rounded-full shadow-sm font-medium border border-slate-300">
+                    {text}
+                </span>
+            </div>
+        );
     };
 
     const handleUpdateUser = async (e: React.FormEvent) => {
@@ -632,44 +648,57 @@ export default function DashboardPage() {
                             </div>
 
                             <ScrollArea className="flex-1 min-h-0 p-4" onScrollCapture={handleScroll}>
-                                <div className="space-y-4">
-                                    {messages.filter(m => m.conversationUserId === selectedUser).map((m, i) => (
-                                        <div key={i} className={`flex flex-col ${m.senderId !== selectedUser ? 'items-end' : 'items-start'}`}>
-                                            {/* Name above bubble */}
-                                            <span className="text-[10px] text-muted-foreground mb-1 px-1 font-medium uppercase tracking-wider">
-                                                {m.senderId !== selectedUser ? debugInfo.displayName : (users.find(u => u.id === selectedUser)?.displayName || 'User')}
-                                            </span>
-                                            <div className={`flex ${m.senderId !== selectedUser ? 'justify-end' : 'justify-start'} items-end gap-2 max-w-[85%]`}>
-                                                <div className={`p-3 rounded-2xl shadow-sm text-sm break-words ${m.senderId !== selectedUser
-                                                    ? 'bg-primary text-primary-foreground rounded-br-none'
-                                                    : 'bg-muted rounded-bl-none'}`}>
-                                                    <MessageContent
-                                                        content={m.content}
-                                                        isOwnMessage={m.senderId !== selectedUser}
-                                                    />
-                                                </div>
-                                            </div>
-                                            {/* Status for Admin (Me) */}
-                                            {m.senderId !== selectedUser && (
-                                                <div className="text-[10px] text-muted-foreground mt-1 mr-1 flex items-center gap-1">
-                                                    {m.status === 'sending' && <ClockIcon />}
-                                                    {m.status === 'sent' && <CheckIcon className="text-gray-400" />}
-                                                    {(m.status === 'delivered' || m.status === 'DELIVERED') && (
-                                                        <div className="flex -space-x-1"><CheckIcon className="text-gray-400" /><CheckIcon className="text-gray-400" /></div>
-                                                    )}
-                                                    {(m.status === 'read' || m.status === 'READ') && (
-                                                        <div className="flex -space-x-1"><CheckIcon className="text-blue-500" /><CheckIcon className="text-blue-500" /></div>
-                                                    )}
-                                                    {m.status === 'failed' && (
-                                                        <div className="flex items-center gap-2">
-                                                            <AlertIcon /> <span className="text-red-500">Failed</span>
-                                                            <button onClick={() => handleRetry(m)} className="text-blue-500 hover:underline font-bold">Retry</button>
+                                <div className="space-y-4 pt-8">
+                                    {messages.filter(m => m.conversationUserId === selectedUser).map((m, i, arr) => {
+                                        const currentDate = new Date(m.createdAt || Date.now());
+                                        const prevDate = i > 0 ? new Date(arr[i - 1].createdAt || Date.now()) : null;
+                                        const showDateHeader = !prevDate || !isSameDay(currentDate, prevDate);
+
+                                        return (
+                                            <div key={i}>
+                                                {showDateHeader && renderDateHeader(currentDate)}
+                                                <div className={`flex flex-col ${m.senderId !== selectedUser ? 'items-end' : 'items-start'} mb-4`}>
+                                                    {/* Name above bubble */}
+                                                    <span className="text-[10px] text-muted-foreground mb-1 px-1 font-medium uppercase tracking-wider">
+                                                        {m.senderId !== selectedUser ? debugInfo.displayName : (users.find(u => u.id === selectedUser)?.displayName || 'User')}
+                                                    </span>
+                                                    <div className={`flex ${m.senderId !== selectedUser ? 'justify-end' : 'justify-start'} items-end gap-2 max-w-[85%]`}>
+                                                        <div className={`p-3 rounded-2xl shadow-sm text-sm break-words relative min-w-[80px] ${m.senderId !== selectedUser
+                                                            ? 'bg-primary text-primary-foreground rounded-br-none'
+                                                            : 'bg-muted rounded-bl-none'}`}>
+                                                            <MessageContent
+                                                                content={m.content}
+                                                                isOwnMessage={m.senderId !== selectedUser}
+                                                            />
+                                                            {/* Timestamp */}
+                                                            <div className={`text-[9px] text-right mt-1 ${m.senderId !== selectedUser ? 'text-blue-100' : 'text-slate-500'}`}>
+                                                                {format(currentDate, 'h:mm a')}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {/* Status for Admin (Me) */}
+                                                    {m.senderId !== selectedUser && (
+                                                        <div className="text-[10px] text-muted-foreground mt-1 mr-1 flex items-center gap-1">
+                                                            {m.status === 'sending' && <ClockIcon />}
+                                                            {m.status === 'sent' && <CheckIcon className="text-gray-400" />}
+                                                            {(m.status === 'delivered' || m.status === 'DELIVERED') && (
+                                                                <div className="flex -space-x-1"><CheckIcon className="text-gray-400" /><CheckIcon className="text-gray-400" /></div>
+                                                            )}
+                                                            {(m.status === 'read' || m.status === 'READ') && (
+                                                                <div className="flex -space-x-1"><CheckIcon className="text-blue-500" /><CheckIcon className="text-blue-500" /></div>
+                                                            )}
+                                                            {m.status === 'failed' && (
+                                                                <div className="flex items-center gap-2">
+                                                                    <AlertIcon /> <span className="text-red-500">Failed</span>
+                                                                    <button onClick={() => handleRetry(m)} className="text-blue-500 hover:underline font-bold">Retry</button>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                            </div>
+                                        );
+                                    })}
                                     <div ref={scrollRef} />
                                 </div>
                             </ScrollArea>
